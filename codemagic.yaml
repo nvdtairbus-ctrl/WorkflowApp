@@ -4,6 +4,8 @@ workflows:
     max_build_duration: 60
     environment:
       node: 20
+      groups:
+        - keystore_credentials
     scripts:
       - name: Install dependencies
         script: npm install
