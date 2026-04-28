@@ -1,5 +1,5 @@
 workflows:
-  # برای ساخت Development Client (دیباگ - مخصوص توسعه)
+  # برای Development Client (که کار می‌کند)
   android-dev-client:
     name: Android Development Client
     max_build_duration: 60
@@ -10,37 +10,40 @@ workflows:
         script: npm install
       - name: Prebuild Expo project
         script: npx expo prebuild --platform android --clean
-      - name: Build Debug APK (Development Client)
+      - name: Build Debug APK
         script: |
           cd android
           ./gradlew assembleDebug
     artifacts:
       - android/app/build/outputs/**/**/*.apk
 
-  # برای ساخت APK نهایی (Production - که قبلاً استفاده کردی)
+  # برای نسخه نهایی (Production) - روش ساده
   android-production:
     name: Android Production Build
     max_build_duration: 60
     environment:
       node: 20
-      groups:
-        - keystore_credentials
     scripts:
-      - name: Set up keystore
-        script: |
-          echo "$CM_KEYSTORE" | base64 --decode > /tmp/keystore.jks
-          cat >> "android/key.properties" <<EOF
-          storePassword=$CM_KEYSTORE_PASSWORD
-          keyPassword=$CM_KEY_PASSWORD
-          keyAlias=$CM_KEY_ALIAS
-          storeFile=/tmp/keystore.jks
-          EOF
       - name: Install dependencies
         script: npm install
+      
       - name: Prebuild Expo project
         script: npx expo prebuild --platform android --clean
-      - name: Build Release APK
+      
+      - name: Copy keystore from credentials folder
         script: |
+          # کپی کردن فایل keystore از پوشه credentials به android/app
+          cp credentials/android/keystore.jks android/app/keystore.jks
+          
+          # ایجاد فایل key.properties
+          cat > android/key.properties <<EOF
+          storePassword=88c1d10e74239d17f3f16944e4630f1f
+          keyPassword=42d367b2d61e48b1ba630456b5235b2c
+          keyAlias=5f9f5a3a7d2f03ea66cbc3c36f23f509
+          storeFile=app/keystore.jks
+          EOF
+          
+          # ساخت APK
           cd android
           ./gradlew assembleRelease
     artifacts:

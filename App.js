@@ -653,9 +653,9 @@ export default function App() {
             screenOptions={{
               tabBarStyle: {
                 backgroundColor: 'white',
-                height: 55,
+                height: 100,
                 paddingBottom: 5,
-                paddingTop: 5,
+                paddingTop: 1,
                 borderTopWidth: 1,
                 borderTopColor: '#E0E0E0',
               },
