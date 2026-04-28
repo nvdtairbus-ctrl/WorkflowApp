@@ -1,17 +1,45 @@
 workflows:
-  android-workflow:
-    name: Android Build
+  # برای ساخت Development Client (دیباگ - مخصوص توسعه)
+  android-dev-client:
+    name: Android Development Client
+    max_build_duration: 60
+    environment:
+      node: 20
+    scripts:
+      - name: Install dependencies
+        script: npm install
+      - name: Prebuild Expo project
+        script: npx expo prebuild --platform android --clean
+      - name: Build Debug APK (Development Client)
+        script: |
+          cd android
+          ./gradlew assembleDebug
+    artifacts:
+      - android/app/build/outputs/**/**/*.apk
+
+  # برای ساخت APK نهایی (Production - که قبلاً استفاده کردی)
+  android-production:
+    name: Android Production Build
     max_build_duration: 60
     environment:
       node: 20
       groups:
         - keystore_credentials
     scripts:
+      - name: Set up keystore
+        script: |
+          echo "$CM_KEYSTORE" | base64 --decode > /tmp/keystore.jks
+          cat >> "android/key.properties" <<EOF
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyPassword=$CM_KEY_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          storeFile=/tmp/keystore.jks
+          EOF
       - name: Install dependencies
         script: npm install
       - name: Prebuild Expo project
         script: npx expo prebuild --platform android --clean
-      - name: Build Android APK
+      - name: Build Release APK
         script: |
           cd android
           ./gradlew assembleRelease
