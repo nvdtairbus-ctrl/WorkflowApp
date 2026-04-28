@@ -2,7 +2,7 @@
   "expo": {
     "name": "Workflow",
     "slug": "Workflow",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -22,7 +22,6 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.nvd.t.airbus.Workflow"
-	  "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
