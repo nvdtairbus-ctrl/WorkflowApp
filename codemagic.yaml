@@ -17,7 +17,7 @@ workflows:
     artifacts:
       - android/app/build/outputs/**/**/*.apk
 
-  # برای نسخه نهایی (Production APK) با Keystore یکسان
+  # برای نسخه نهایی (Production APK)
   android-production:
     name: Android Production Build
     max_build_duration: 60
@@ -28,20 +28,8 @@ workflows:
         script: npm install
       - name: Prebuild Expo project
         script: npx expo prebuild --platform android --clean
-      - name: Build Release APK with same keystore
+      - name: Build Release APK
         script: |
-          # ایجاد پوشه android/app اگر وجود ندارد
-          mkdir -p android/app
-          # کپی فایل keystore
-          cp credentials/android/keystore.jks android/app/keystore.jks
-          # ایجاد فایل key.properties
-          cat > android/key.properties <<EOF
-          storePassword=88c1d10e74239d17f3f16944e4630f1f
-          keyPassword=42d367b2d61e48b1ba630456b5235b2c
-          keyAlias=5f9f5a3a7d2f03ea66cbc3c36f23f509
-          storeFile=app/keystore.jks
-          EOF
-          # ساخت APK
           cd android
           ./gradlew assembleRelease
     artifacts:
