@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  SafeAreaView,
   Platform,
   KeyboardAvoidingView,
   Modal as RNModal,
@@ -124,7 +125,7 @@ const PermitScreen = ({ type, refreshTrigger, onRefresh }) => {
   };
 
   const getAssigneeText = (assignee) => {
-    return assignee === 'me' ? 'سازمان هواپیمایی' : 'شرکت متقاضی';
+    return assignee === 'me' ? 'خودم' : 'دیگران';
   };
 
   const getTypeLabel = () => {
@@ -285,7 +286,7 @@ const PermitScreen = ({ type, refreshTrigger, onRefresh }) => {
                 ⏳ {lastStep ? lastStep.text : 'هنوز مرحله‌ای اضافه نشده'}
               </Text>
               <Text style={{ fontSize: 13, fontWeight: '500', marginTop: 4, color: borderColor }}>
-                🎯 نوبت: {lastStep ? getAssigneeText(lastStep.assignee) : 'سازمان هواپیمایی'}
+                🎯 نوبت: {lastStep ? getAssigneeText(lastStep.assignee) : 'خودم'}
               </Text>
             </Card.Content>
           </Card>
@@ -448,7 +449,7 @@ const PermitScreen = ({ type, refreshTrigger, onRefresh }) => {
               <TextInput
                 value={newTitle}
                 onChangeText={setNewTitle}
-                placeholder="مثال: فاراتک - تعمیرات موتور سطح ۲"
+                placeholder="تیتر مربوط به یک وظیفه مشخص"
                 style={{
                   backgroundColor: '#F5F7FA',
                   borderRadius: 12,
@@ -499,29 +500,29 @@ const PermitScreen = ({ type, refreshTrigger, onRefresh }) => {
               <Text style={{ fontWeight: 'bold', marginBottom: 8, color: '#2C3E50' }}>انجام‌دهنده:</Text>
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <TouchableOpacity
-                  onPress={() => setStepAssignee('me')}
-                  style={{
-                    flex: 1,
-                    padding: 10,
-                    borderRadius: 12,
-                    backgroundColor: stepAssignee === 'me' ? '#1E4D6F' : '#F5F7FA',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text style={{ color: stepAssignee === 'me' ? 'white' : '#2C3E50' }}>سازمان هواپیمایی</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setStepAssignee('company')}
-                  style={{
-                    flex: 1,
-                    padding: 10,
-                    borderRadius: 12,
-                    backgroundColor: stepAssignee === 'company' ? '#1E4D6F' : '#F5F7FA',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text style={{ color: stepAssignee === 'company' ? 'white' : '#2C3E50' }}>شرکت متقاضی</Text>
-                </TouchableOpacity>
+  onPress={() => setStepAssignee('me')}
+  style={{
+    flex: 1,
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: stepAssignee === 'me' ? '#1E4D6F' : '#F5F7FA',
+    alignItems: 'center',
+  }}
+>
+  <Text style={{ color: stepAssignee === 'me' ? 'white' : '#2C3E50' }}>خودم</Text>
+</TouchableOpacity>
+<TouchableOpacity
+  onPress={() => setStepAssignee('company')}
+  style={{
+    flex: 1,
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: stepAssignee === 'company' ? '#1E4D6F' : '#F5F7FA',
+    alignItems: 'center',
+  }}
+>
+  <Text style={{ color: stepAssignee === 'company' ? 'white' : '#2C3E50' }}>دیگران</Text>
+</TouchableOpacity>
               </View>
               <View style={{ flexDirection: 'row', marginTop: 20, gap: 10 }}>
                 <Button onPress={() => setStepModalVisible(false)} style={{ flex: 1 }}>انصراف</Button>
@@ -698,6 +699,8 @@ export default function App() {
                 backgroundColor: '#1E4D6F',
                 elevation: 0,
                 shadowOpacity: 0,
+				paddingTop: 40,
+				height: 100,
               },
               tabBarIndicatorStyle: {
                 backgroundColor: '#FF9800',
