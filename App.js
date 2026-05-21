@@ -12,13 +12,13 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { Provider as PaperProvider, Card, Button } from 'react-native-paper';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as jalaali from 'jalaali-js';
 
-const Tab = createBottomTabNavigator();
+const Tab = createMaterialTopTabNavigator();
 
 // ========== تاریخ شمسی ==========
 const toJalaali = (date) => {
@@ -35,8 +35,8 @@ const loadData = async (key) => {
   return json ? JSON.parse(json) : [];
 };
 
-// ========== صفحه پرونده‌های جاری (با قابلیت جابجایی) ==========
-const ActiveScreen = ({ refreshTrigger, onRefresh }) => {
+// ========== کامپوننت صفحه پرونده‌ها (قابل استفاده برای هر نوع) ==========
+const PermitScreen = ({ type, refreshTrigger, onRefresh }) => {
   const [permitList, setPermitList] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -46,16 +46,40 @@ const ActiveScreen = ({ refreshTrigger, onRefresh }) => {
   const [stepText, setStepText] = useState('');
   const [stepAssignee, setStepAssignee] = useState('me');
   const [currentPermitId, setCurrentPermitId] = useState(null);
+  const [migrated, setMigrated] = useState(false);
+
+  // مهاجرت داده‌های قدیمی به نوع جدید (فقط یک بار)
+  useEffect(() => {
+    const migrateOldData = async () => {
+      if (migrated) return;
+      const allData = await loadData('permits');
+      let needsSave = false;
+      const updatedData = allData.map(p => {
+        if (!p.type) {
+          needsSave = true;
+          // پرونده‌های قدیمی که type ندارند، به صورت پیش‌فرض 'corporate' می‌شوند
+          return { ...p, type: 'corporate' };
+        }
+        return p;
+      });
+      if (needsSave) {
+        await saveData('permits', updatedData);
+      }
+      setMigrated(true);
+    };
+    migrateOldData();
+  }, []);
 
   useEffect(() => {
     loadPermits();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, type]);
 
   const loadPermits = async () => {
     const data = await loadData('permits');
-    const active = data.filter(p => p.completed !== true);
-    // مرتب‌سازی بر اساس order (اگر وجود داشته باشد)
-    const sorted = active.sort((a, b) => {
+    // فیلتر بر اساس نوع (corporate, government, personal)
+    const filtered = data.filter(p => p.completed !== true && p.type === type);
+    // مرتب‌سازی بر اساس order
+    const sorted = filtered.sort((a, b) => {
       const orderA = a.order !== undefined ? a.order : 999999;
       const orderB = b.order !== undefined ? b.order : 999999;
       return orderA - orderB;
@@ -64,31 +88,18 @@ const ActiveScreen = ({ refreshTrigger, onRefresh }) => {
   };
 
   const savePermits = async (newList) => {
-    await saveData('permits', newList);
+    const allData = await loadData('permits');
+    const otherTypes = allData.filter(p => p.type !== type || p.completed === true);
+    await saveData('permits', [...otherTypes, ...newList]);
     await loadPermits();
     if (onRefresh) onRefresh();
   };
 
-  // ========== تابع جابجایی کارت‌ها ==========
   const handleDragEnd = async ({ data }) => {
-    // به‌روزرسانی ترتیب (order) برای هر آیتم
-    const reorderedData = data.map((item, index) => ({
-      ...item,
-      order: index,
-    }));
-    
-    // ذخیره در AsyncStorage
+    const reorderedData = data.map((item, index) => ({ ...item, order: index }));
     const allData = await loadData('permits');
-    const activeIds = reorderedData.map(p => p.id);
-    
-    const updatedAllData = allData.map(item => {
-      if (activeIds.includes(item.id)) {
-        const newItem = reorderedData.find(p => p.id === item.id);
-        return { ...item, order: newItem.order };
-      }
-      return item;
-    });
-    
+    const otherTypes = allData.filter(p => p.type !== type || p.completed === true);
+    const updatedAllData = [...otherTypes, ...reorderedData];
     await saveData('permits', updatedAllData);
     setPermitList(reorderedData);
   };
@@ -116,16 +127,26 @@ const ActiveScreen = ({ refreshTrigger, onRefresh }) => {
     return assignee === 'me' ? 'سازمان هواپیمایی' : 'شرکت متقاضی';
   };
 
+  const getTypeLabel = () => {
+    switch (type) {
+      case 'corporate': return 'شرکتی';
+      case 'government': return 'سازمانی';
+      case 'personal': return 'شخصی';
+      default: return '';
+    }
+  };
+
   const addPermit = async () => {
     if (!newTitle.trim()) {
       Alert.alert('خطا', 'لطفاً موضوع را وارد کنید');
       return;
     }
     const allData = await loadData('permits');
-    const newOrder = permitList.length; // ترتیب جدید در انتهای لیست
+    const newOrder = permitList.length;
     const newPermit = {
       id: Date.now().toString(),
       title: newTitle.trim(),
+      type: type,
       steps: [],
       completed: false,
       pinned: false,
@@ -389,7 +410,7 @@ const ActiveScreen = ({ refreshTrigger, onRefresh }) => {
           <Card style={{ borderRadius: 16, backgroundColor: 'white', margin: 12 }}>
             <Card.Content>
               <Text style={{ textAlign: 'center', color: '#95A5A6', padding: 20 }}>
-                هیچ پرونده فعالی وجود ندارد
+                هیچ پرونده {getTypeLabel()} فعالی وجود ندارد
               </Text>
             </Card.Content>
           </Card>
@@ -422,7 +443,7 @@ const ActiveScreen = ({ refreshTrigger, onRefresh }) => {
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}>
             <View style={{ backgroundColor: 'white', borderRadius: 20, padding: 20 }}>
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1E4D6F', marginBottom: 15 }}>
-                {editingPermit ? 'ویرایش پرونده' : 'پرونده جدید'}
+                {editingPermit ? 'ویرایش پرونده' : 'پرونده جدید'} ({getTypeLabel()})
               </Text>
               <TextInput
                 value={newTitle}
@@ -586,6 +607,15 @@ const ArchiveScreen = ({ refreshTrigger }) => {
     ]);
   };
 
+  const getTypeLabel = (type) => {
+    switch (type) {
+      case 'corporate': return 'شرکتی';
+      case 'government': return 'سازمانی';
+      case 'personal': return 'شخصی';
+      default: return '';
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#F5F7FA' }}>
       <ScrollView style={{ flex: 1, padding: 12 }}>
@@ -595,7 +625,10 @@ const ArchiveScreen = ({ refreshTrigger }) => {
             <Card key={permit.id} style={{ marginBottom: 12, borderRadius: 16, backgroundColor: 'white' }}>
               <Card.Content>
                 <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#2C3E50' }}>
-                  ✅ {permit.title}
+                  {permit.type === 'corporate' && '🏢'} {permit.type === 'government' && '🏛️'} {permit.type === 'personal' && '👤'} {permit.title}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#7F8C8D', marginTop: 2 }}>
+                  نوع: {getTypeLabel(permit.type)}
                 </Text>
                 {lastStep && (
                   <Text style={{ fontSize: 13, color: '#7F8C8D', marginTop: 4 }}>
@@ -640,39 +673,63 @@ const ArchiveScreen = ({ refreshTrigger }) => {
   );
 };
 
-// ========== اپلیکیشن اصلی ==========
+// ========== اپلیکیشن اصلی با ۴ تب کشویی ==========
 export default function App() {
   const [refresh, setRefresh] = useState(0);
   const triggerRefresh = useCallback(() => setRefresh(prev => prev + 1), []);
+
+  // رنگ‌های تب‌ها بر اساس نوع
+  const getTabIcon = (type) => {
+    switch (type) {
+      case 'corporate': return '🏢';
+      case 'government': return '🏛️';
+      case 'personal': return '👤';
+      default: return '';
+    }
+  };
 
   return (
     <PaperProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <NavigationContainer>
           <Tab.Navigator
-            screenOptions={{
+            screenOptions={({ route }) => ({
               tabBarStyle: {
-                backgroundColor: 'white',
-                height: 100,
-                paddingBottom: 5,
-                paddingTop: 1,
-                borderTopWidth: 1,
-                borderTopColor: '#E0E0E0',
+                backgroundColor: '#1E4D6F',
+                elevation: 0,
+                shadowOpacity: 0,
               },
-              tabBarActiveTintColor: '#1E4D6F',
-              tabBarInactiveTintColor: '#BDC3C7',
+              tabBarIndicatorStyle: {
+                backgroundColor: '#FF9800',
+                height: 3,
+              },
               tabBarLabelStyle: {
-                fontSize: 15,
+                fontSize: 13,
                 fontWeight: 'bold',
+                color: 'white',
               },
-              tabBarIcon: () => null,
+              tabBarIcon: ({ focused, color }) => {
+                let icon = '';
+                if (route.name === 'شرکتی') icon = '🏢';
+                else if (route.name === 'سازمانی') icon = '🏛️';
+                else if (route.name === 'شخصی') icon = '👤';
+                else if (route.name === 'آرشیو') icon = '📦';
+                return <Text style={{ fontSize: 18, color: focused ? '#FF9800' : 'white' }}>{icon}</Text>;
+              },
               headerStyle: { backgroundColor: '#1E4D6F', elevation: 0, shadowOpacity: 0 },
               headerTitleStyle: { color: 'white', fontWeight: 'bold', fontSize: 18 },
               headerTitleAlign: 'center',
-            }}
+              headerTitle: 'Workflow',
+            })}
           >
-            <Tab.Screen name="پرونده‌های جاری">
-              {() => <ActiveScreen refreshTrigger={refresh} onRefresh={triggerRefresh} />}
+            <Tab.Screen name="شرکتی">
+              {() => <PermitScreen type="corporate" refreshTrigger={refresh} onRefresh={triggerRefresh} />}
+            </Tab.Screen>
+            <Tab.Screen name="سازمانی">
+              {() => <PermitScreen type="government" refreshTrigger={refresh} onRefresh={triggerRefresh} />}
+            </Tab.Screen>
+            <Tab.Screen name="شخصی">
+              {() => <PermitScreen type="personal" refreshTrigger={refresh} onRefresh={triggerRefresh} />}
             </Tab.Screen>
             <Tab.Screen name="آرشیو">
               {() => <ArchiveScreen refreshTrigger={refresh} />}
